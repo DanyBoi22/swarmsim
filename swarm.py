@@ -36,7 +36,7 @@ while True:
 
     # Update and draw creatures
     for creature in creatures:
-        creature.move()
+        creature.move(creatures)
         creature.draw(screen)
     
     stats.end_loop()
