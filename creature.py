@@ -36,6 +36,7 @@ class Creature:
 
     def draw(self, screen):
         # Orientation logic for a triangle
+        # ToDo: Optimize it
         angle = math.atan2(self.velocity.y, self.velocity.x)  # Angle of movement in radians
         tip = self.position + pygame.Vector2(math.cos(angle), math.sin(angle)) * self.size
         left = self.position + pygame.Vector2(math.cos(angle + 2 * math.pi / 3), math.sin(angle + 2 * math.pi / 3)) * (self.size / 2)
