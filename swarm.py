@@ -4,21 +4,15 @@ from creature import Creature
 from grid import Grid
 import random
 
-# Constants
-WINDOW_WIDTH = 600
-WINDOW_HEIGHT = 600
-GRID_SIZE = 600
-CELL_SIZE = WINDOW_WIDTH // GRID_SIZE
+# Create grid and creatures
+grid = Grid()
+creatures = [Creature(grid) for _ in range(5)]
 
 # Initialize Pygame
 pygame.init()
-screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+screen = pygame.display.set_mode((grid.get_window_width(), grid.get_window_height()))
 pygame.display.set_caption("Grid World with Creatures")
 clock = pygame.time.Clock()
-
-# Create grid and creatures
-grid = Grid(GRID_SIZE, CELL_SIZE)
-creatures = [Creature(random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1)) for _ in range(5)]
 
 # Simulation Loop
 while True:
@@ -40,4 +34,5 @@ while True:
     
     # Update display
     pygame.display.flip()
+    # Limits the updates per second
     clock.tick(60)
