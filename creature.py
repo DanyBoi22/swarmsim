@@ -3,13 +3,13 @@ import random
 import math
 from grid import Grid
 
-SIZE = 20 # Creature size independent of the grid
+SIZE = 20 # Creature size independent of the grid (in pixels)
 COLOR = (255, 0, 0) # Creature color as rgb 
-VICINITY_RADIUS = 50 # Radius of creatures vicinity
-MIN_DISTANCE = 30 # minimal distance to other creatures 
-MAX_VELOCITY = 4 # maximal velocity multiplier
-MAX_TURN_RATE = 5 # maximal turn rate
-MAX_VELOCITY_DEVIATION = 0.1 # 
+VICINITY_RADIUS = 80 # Radius of creatures vicinity (in pixels)
+MIN_DISTANCE = 40 # minimal distance to other creatures (in pixels)
+MAX_VELOCITY = 4 # maximal velocity multiplier (in pixels)
+MAX_TURN_RATE = 5 # maximal turn rate during a single frame (in radians)
+MAX_VELOCITY_DEVIATION = 0.05 # maximal deviation to the velocity that cann occure during a single frame (in pixels)
 
 class Creature:
 
@@ -32,6 +32,7 @@ class Creature:
         # Buffers for the next state
         self.next_position = self.position
         self.next_direction = self.direction
+        self.next_velocity = self.velocity
     
         self.world_width = grid.get_window_width()  # Width of the world
         self.world_height = grid.get_window_height()  # Height of the world
@@ -44,19 +45,23 @@ class Creature:
             desired_direction.normalize()
 
             # Gradually adjust the direction toward the desired direction
-            self.next_direction = self.apply_inertia(self.direction, desired_direction)
+            self.next_direction = self.align_direction(self.direction, desired_direction)
         else:
             self.next_direction = self.direction  # No change in direction
+        """
+        ToDo: make the creatures adjust their velocity to the creatures nearby
+        """
 
+        self.adjust_velocity(creatures_list)
 
-
-        self.next_position += self.direction * self.randomise_velocity()
+        self.next_position += self.direction * self.next_velocity
         self.border_check()
         
     def update_state(self):
         # Apply the buffered next state
         self.direction = self.next_direction
         self.position = self.next_position
+        self.velocity = self.next_velocity
 
     def border_check(self):
         """
@@ -71,16 +76,7 @@ class Creature:
             self.next_direction.y *= -1  # Reverse y direction
             self.next_position.y = max(self.size, min(self.world_height - self.size, self.position.y))  # Clamp position
     
-    def randomise_velocity(self):
-        # Random change in velocity multiplier: either increase or decrease slightly
-        velocity_change = random.uniform(-self.max_velocity_deviation, self.max_velocity_deviation)
-        self.velocity += velocity_change
-        
-        # Keep the velocity multiplier within the range [0, max_speed]
-        self.velocity = max(0, min(self.velocity, self.max_velocity))
-        return self.velocity
-    
-    def apply_inertia(self, current_direction, desired_direction):
+    def align_direction(self, current_direction, desired_direction):
         # Calculate the angle between the current and desired direction vectors
         current_angle = math.atan2(current_direction.y, current_direction.x)
         desired_angle = math.atan2(desired_direction.y, desired_direction.x)
@@ -95,6 +91,34 @@ class Creature:
         # Calculate the new angle and create a new direction vector
         new_angle = current_angle + angle_difference
         return pygame.Vector2(math.cos(new_angle), math.sin(new_angle))
+    
+    def align_velocity(self, average_velocity, alignment_strength=0.1):
+        """
+        Gradually adjust the creature's velocity towards the average velocity of its neighbors.
+        The adjustment happens gradually to avoid sudden changes.
+        """
+        if average_velocity > 0:
+            desired_velocity = average_velocity
+            velocity_change = desired_velocity - self.velocity
+
+            # Apply the limit (if the magnitude exceeds the max allowed change)
+            max_change = self.max_velocity * alignment_strength
+            if velocity_change > max_change:
+                # Scale the velocity change to the maximum allowed magnitude
+                velocity_change = max_change
+
+            self.next_velocity += velocity_change
+            self.next_velocity = max(0, min(self.next_velocity, self.max_velocity))
+
+        self.randomise_velocity()
+
+    def randomise_velocity(self):
+        # Random change in velocity multiplier: either increase or decrease slightly
+        velocity_change = random.uniform(-self.max_velocity_deviation, self.max_velocity_deviation)
+        self.next_velocity = self.next_velocity + velocity_change
+        
+        # Keep the velocity multiplier within the range [0, max_speed]
+        self.next_velocity = max(0, min(self.next_velocity, self.max_velocity))
 
     def direction_force(self, creatures_list):
         """
@@ -142,6 +166,26 @@ class Creature:
                 separation_direction.normalize()
 
         return direction_to_center + average_direction + separation_direction
+    
+    def adjust_velocity(self, creatures_list):
+        """
+        """
+
+        average_velocity = 0
+        total_nearby = 0
+        
+        for other in creatures_list:
+            if other != self:
+                dist = self.position.distance_to(other.position)
+                if dist < self.vicinity_radius:
+                    total_nearby += 1
+                    average_velocity += other.velocity
+
+        if total_nearby > 0:
+            average_velocity /= total_nearby
+
+        self.align_velocity(average_velocity)
+    
 
     def draw(self, screen):
         # Orientation logic for a triangle
