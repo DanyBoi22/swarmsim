@@ -4,7 +4,7 @@ from creature import Creature
 from grid import Grid
 from stats import Stats 
 
-FPS_LIMIT = 60
+FPS_LIMIT = 120
 
 # Create grid and creatures
 grid = Grid()
