@@ -4,11 +4,12 @@ from creature import Creature
 from grid import Grid
 from stats import Stats 
 
-FPS_LIMIT = 120
+FPS_LIMIT = 30
+NUMBER_OF_CREATURES = 100
 
 # Create grid and creatures
 grid = Grid()
-creatures = [Creature(grid) for _ in range(5)]
+creatures = [Creature(grid) for _ in range(NUMBER_OF_CREATURES)]
 
 # Initialize Pygame
 pygame.init()

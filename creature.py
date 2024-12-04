@@ -4,7 +4,7 @@ import math
 from grid import Grid
 
 SIZE = 20 # Creature size independent of the grid (in pixels)
-COLOR = (255, 0, 0) # Creature color as rgb 
+COLOR = (0, 100, 255) # Creature color as rgb 
 VICINITY_RADIUS = 80 # Radius of creatures vicinity (in pixels)
 MIN_DISTANCE = 40 # minimal distance to other creatures (in pixels)
 MAX_VELOCITY = 4 # maximal velocity multiplier (in pixels)
@@ -202,53 +202,3 @@ class Creature:
         
         # Draw the triangle
         pygame.draw.polygon(screen, COLOR, points)
-
-    """
-    def cohesion(self, creatures_list):
-        
-        center_of_mass = pygame.Vector2(0, 0)
-        direction_to_center = pygame.Vector2(0, 0)
-        total_nearby = 0
-        
-        for other in creatures_list:
-            if other != self:
-                dist = self.position.distance_to(other.position)
-                if dist < self.vicinity_radius:
-                    center_of_mass += other.position
-                    total_nearby += 1
-        
-        if total_nearby > 0:
-            center_of_mass /= total_nearby
-            direction_to_center = (center_of_mass - self.position).normalize()
-    
-        return direction_to_center
-    
-    def alignment(self, creatures):
-        average_direction = pygame.Vector2(0, 0)
-        total_nearby = 0
-
-        for other in creatures:
-            if other != self:
-                dist = self.position.distance_to(other.position)
-                if dist < self.vicinity_radius:
-                    average_direction += other.direction
-                    total_nearby += 1
-
-        if total_nearby > 0:
-            average_direction /= total_nearby
-            average_direction.normalize()
-        
-        return average_direction
-    
-    def separation(self, creatures_list):
-        separation_direction = pygame.Vector2(0, 0)
-            
-        for other in creatures_list:
-            if other != self:
-                dist = self.position.distance_to(other.position)
-                if dist < self.vicinity_radius and dist < self.min_distance:
-                    # Move away from the nearby creature
-                    separation_direction += (self.position - other.position).normalize()# / dist  # Inverse proportional to distance
-        
-        return separation_direction
-    """
