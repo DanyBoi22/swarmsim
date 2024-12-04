@@ -8,7 +8,7 @@ COLOR = (255, 0, 0) # Creature color as rgb
 VICINITY_RADIUS = 50 # Radius of creatures vicinity
 MIN_DISTANCE = 30 # minimal distance to other creatures 
 MAX_VELOCITY = 2 # maximal velocity multiplier
-MAX_TURN_RATE = 10 # maximal turn rate
+MAX_TURN_RATE = 5 # maximal turn rate
 
 class Creature:
 
@@ -19,47 +19,54 @@ class Creature:
         self.min_distance = MIN_DISTANCE
         self.max_velocity = MAX_VELOCITY
         self.max_turn_rate = math.radians(MAX_TURN_RATE)
-
-        #self.standart_velocity = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)) * self.max_velocity  # Random standart velocity
-        
+                            
         x = random.randint(0, grid.get_grid_size() - 1) # random starting x position
         y = random.randint(0, grid.get_grid_size() - 1) # random starting y position
         self.position = pygame.Vector2(x, y)
-        self.velocity = MAX_VELOCITY
         self.direction = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() # initiate random direction
+
+        self.velocity = self.max_velocity
+
+        # Buffers for the next state
+        self.next_position = self.position
+        self.next_direction = self.direction
     
         self.world_width = grid.get_window_width()  # Width of the world
         self.world_height = grid.get_window_height()  # Height of the world
         
-    def move(self, creatures_list):
-        
-        """
-        cohesion_force = self.cohesion(creatures_list)
-        alignment_force = self.alignment(creatures_list)
-        separation_force = self.separation(creatures_list)
-        total_force = cohesion_force + alignment_force + separation_force
-        """
+    def calculate_next_state(self, creatures_list):
 
-        # Combine the forces
+        # Calculate desired direction
         desired_direction = self.direction_force(creatures_list)
         if desired_direction.length() > 0:
             desired_direction.normalize()
 
             # Gradually adjust the direction toward the desired direction
-            self.direction = self.apply_inertia(self.direction, desired_direction)
+            self.next_direction = self.apply_inertia(self.direction, desired_direction)
+        else:
+            self.next_direction = self.direction  # No change in direction
 
-        self.position += self.velocity * self.direction
+
+        self.next_position += self.velocity * self.direction
         self.border_check()
         
+    def update_state(self):
+        # Apply the buffered next state
+        self.direction = self.next_direction
+        self.position = self.next_position
+
     def border_check(self):
+        """
+        ToDo: rework later
+        """
         # Check for collisions with borders and reverse direction
         if self.position.x - self.size < 0 or self.position.x + self.size > self.world_width:
-            self.direction.x *= -1  # Reverse x direction
-            self.position.x = max(self.size, min(self.world_width - self.size, self.position.x))  # Clamp position
+            self.next_direction.x *= -1  # Reverse x direction
+            self.next_position.x = max(self.size, min(self.world_width - self.size, self.position.x))  # Clamp position
         
         if self.position.y - self.size < 0 or self.position.y + self.size > self.world_height:
-            self.direction.y *= -1  # Reverse y direction
-            self.position.y = max(self.size, min(self.world_height - self.size, self.position.y))  # Clamp position
+            self.next_direction.y *= -1  # Reverse y direction
+            self.next_position.y = max(self.size, min(self.world_height - self.size, self.position.y))  # Clamp position
     
     def randomise_velocity(self):
         return 0
@@ -91,7 +98,6 @@ class Creature:
         If they are too close, they will move away from one another to maintain a safe distance.
         """
 
-
         center_of_mass = pygame.Vector2(0, 0)
         direction_to_center = pygame.Vector2(0, 0)
         average_direction = pygame.Vector2(0, 0)
@@ -111,7 +117,7 @@ class Creature:
 
                     if dist < self.min_distance:
                         # Move away from the nearby creature
-                        separation_direction += (self.position - other.position)# / dist  # Inverse proportional to distance
+                        separation_direction += (self.position - other.position) / dist  # Inverse proportional to distance
 
         if total_nearby > 0:
             # cohesion
@@ -127,8 +133,24 @@ class Creature:
                 separation_direction.normalize()
 
         return direction_to_center + average_direction + separation_direction
-        
 
+    def draw(self, screen):
+        # Orientation logic for a triangle
+        """
+         ToDo: Optimize 
+        """
+        angle = math.atan2(self.direction.y, self.direction.x)  # Angle of movement in radians
+        tip = self.position + pygame.Vector2(math.cos(angle), math.sin(angle)) * self.size
+        left = self.position + pygame.Vector2(math.cos(angle + 2 * math.pi / 3), math.sin(angle + 2 * math.pi / 3)) * (self.size / 2)
+        right = self.position + pygame.Vector2(math.cos(angle - 2 * math.pi / 3), math.sin(angle - 2 * math.pi / 3)) * (self.size / 2)
+        
+        # Convert coordinates to integers for rendering
+        points = [(int(tip.x), int(tip.y)), (int(left.x), int(left.y)), (int(right.x), int(right.y))]
+        
+        # Draw the triangle
+        pygame.draw.polygon(screen, COLOR, points)
+
+    """
     def cohesion(self, creatures_list):
         
         center_of_mass = pygame.Vector2(0, 0)
@@ -176,20 +198,4 @@ class Creature:
                     separation_direction += (self.position - other.position).normalize()# / dist  # Inverse proportional to distance
         
         return separation_direction
-
-
-    def draw(self, screen):
-        # Orientation logic for a triangle
-        """
-         ToDo: Optimize 
-        """
-        angle = math.atan2(self.direction.y, self.direction.x)  # Angle of movement in radians
-        tip = self.position + pygame.Vector2(math.cos(angle), math.sin(angle)) * self.size
-        left = self.position + pygame.Vector2(math.cos(angle + 2 * math.pi / 3), math.sin(angle + 2 * math.pi / 3)) * (self.size / 2)
-        right = self.position + pygame.Vector2(math.cos(angle - 2 * math.pi / 3), math.sin(angle - 2 * math.pi / 3)) * (self.size / 2)
-        
-        # Convert coordinates to integers for rendering
-        points = [(int(tip.x), int(tip.y)), (int(left.x), int(left.y)), (int(right.x), int(right.y))]
-        
-        # Draw the triangle
-        pygame.draw.polygon(screen, COLOR, points)
+    """

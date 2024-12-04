@@ -34,10 +34,17 @@ while True:
     # Draw grid
     screen.blit(grid_surface, (0, 0))  # Blit the pre-rendered grid instead of redrawing
 
-    # Update and draw creatures
+    # Step 1: Calculate the next state for all creatures
     for creature in creatures:
-        creature.move(creatures)
-        creature.draw(screen)
+        creature.calculate_next_state(creatures)
+    
+    # Step 2: Update the state for all creatures
+    for creature in creatures:
+        creature.update_state()
+    
+    # Step 3: Draw all creatures
+    for creature in creatures:
+        creature.draw(screen)    
     
     stats.end_loop()
     stats.draw(screen)
