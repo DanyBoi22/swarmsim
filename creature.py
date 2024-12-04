@@ -7,8 +7,9 @@ SIZE = 20 # Creature size independent of the grid
 COLOR = (255, 0, 0) # Creature color as rgb 
 VICINITY_RADIUS = 50 # Radius of creatures vicinity
 MIN_DISTANCE = 30 # minimal distance to other creatures 
-MAX_VELOCITY = 2 # maximal velocity multiplier
+MAX_VELOCITY = 4 # maximal velocity multiplier
 MAX_TURN_RATE = 5 # maximal turn rate
+MAX_VELOCITY_DEVIATION = 0.1 # 
 
 class Creature:
 
@@ -19,13 +20,14 @@ class Creature:
         self.min_distance = MIN_DISTANCE
         self.max_velocity = MAX_VELOCITY
         self.max_turn_rate = math.radians(MAX_TURN_RATE)
+        self.max_velocity_deviation = MAX_VELOCITY_DEVIATION
                             
         x = random.randint(0, grid.get_grid_size() - 1) # random starting x position
         y = random.randint(0, grid.get_grid_size() - 1) # random starting y position
         self.position = pygame.Vector2(x, y)
         self.direction = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() # initiate random direction
 
-        self.velocity = self.max_velocity
+        self.velocity = self.max_velocity / 2
 
         # Buffers for the next state
         self.next_position = self.position
@@ -47,7 +49,8 @@ class Creature:
             self.next_direction = self.direction  # No change in direction
 
 
-        self.next_position += self.velocity * self.direction
+
+        self.next_position += self.direction * self.randomise_velocity()
         self.border_check()
         
     def update_state(self):
@@ -69,7 +72,13 @@ class Creature:
             self.next_position.y = max(self.size, min(self.world_height - self.size, self.position.y))  # Clamp position
     
     def randomise_velocity(self):
-        return 0
+        # Random change in velocity multiplier: either increase or decrease slightly
+        velocity_change = random.uniform(-self.max_velocity_deviation, self.max_velocity_deviation)
+        self.velocity += velocity_change
+        
+        # Keep the velocity multiplier within the range [0, max_speed]
+        self.velocity = max(0, min(self.velocity, self.max_velocity))
+        return self.velocity
     
     def apply_inertia(self, current_direction, desired_direction):
         # Calculate the angle between the current and desired direction vectors
