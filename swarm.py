@@ -4,8 +4,9 @@ from creature import Creature
 from grid import Grid
 from stats import Stats 
 
-FPS_LIMIT = 30
+FPS_LIMIT = 80
 NUMBER_OF_CREATURES = 100
+DEBUG = False
 
 # Create grid and creatures
 grid = Grid()
@@ -45,7 +46,7 @@ while True:
     
     # Step 3: Draw all creatures
     for creature in creatures:
-        creature.draw(screen)    
+        creature.draw(screen, DEBUG)    
     
     stats.end_loop()
     stats.draw(screen)

@@ -9,6 +9,7 @@ VICINITY_RADIUS = 80 # Radius of creatures vicinity (in pixels)
 MIN_DISTANCE = 40 # minimal distance to other creatures (in pixels)
 MAX_VELOCITY = 4 # maximal velocity multiplier (in pixels)
 MAX_TURN_RATE = 5 # maximal turn rate during a single frame (in radians)
+MIN_TURN = 0.5 # minimal allowed turn (in radians)
 MAX_VELOCITY_DEVIATION = 0.05 # maximal deviation to the velocity that cann occure during a single frame (in pixels)
 
 class Creature:
@@ -21,6 +22,7 @@ class Creature:
         self.max_velocity = MAX_VELOCITY
         self.max_turn_rate = math.radians(MAX_TURN_RATE)
         self.max_velocity_deviation = MAX_VELOCITY_DEVIATION
+        self.min_turn = MIN_TURN
                             
         x = random.randint(0, grid.get_grid_size() - 1) # random starting x position
         y = random.randint(0, grid.get_grid_size() - 1) # random starting y position
@@ -36,18 +38,31 @@ class Creature:
     
         self.world_width = grid.get_window_width()  # Width of the world
         self.world_height = grid.get_window_height()  # Height of the world
+
+        self.previous_direction = self.direction # for analysing purposes
         
     def calculate_next_state(self, creatures_list):
 
         # Calculate desired direction
         desired_direction = self.direction_force(creatures_list)
         if desired_direction.length() > 0:
-            desired_direction.normalize()
 
-            # Gradually adjust the direction toward the desired direction
-            self.next_direction = self.align_direction(self.direction, desired_direction)
-        else:
-            self.next_direction = self.direction  # No change in direction
+            # Calculate the angle between the vectors using the dot product
+            dot_product = self.direction.dot(desired_direction)
+
+            # Clamp dot product to avoid precision errors
+            dot_product = max(min(dot_product, 1), -1)
+
+            # Compute the angle (in radians) between the vectors
+            angle_difference = math.acos(dot_product)
+
+            if angle_difference >= self.min_turn:
+                desired_direction.normalize()
+
+                # Gradually adjust the direction toward the desired direction
+                self.next_direction = self.align_direction(self.direction, desired_direction)
+            else:
+                self.next_direction = self.direction  # No change in direction
         """
         ToDo: make the creatures adjust their velocity to the creatures nearby
         """
@@ -59,6 +74,7 @@ class Creature:
         
     def update_state(self):
         # Apply the buffered next state
+        self.previous_direction = self.direction # for analysing purposes
         self.direction = self.next_direction
         self.position = self.next_position
         self.velocity = self.next_velocity
@@ -187,18 +203,47 @@ class Creature:
         self.align_velocity(average_velocity)
     
 
-    def draw(self, screen):
+    def draw(self, screen, debug=False):
         # Orientation logic for a triangle
         """
          ToDo: Optimize 
         """
+        # create the points for the shape
+        points = self.create_triangle_points()
+        # Draw the shape
+        pygame.draw.polygon(screen, COLOR, points)
+
+        if debug:
+            self.draw_vicinity_circle(screen, (0, 0, 0))
+            self.draw_direction(self.direction, screen, (255, 0, 0))
+            self.draw_direction(self.previous_direction, screen, (0, 255, 0))
+
+    def create_triangle_points(self):
         angle = math.atan2(self.direction.y, self.direction.x)  # Angle of movement in radians
         tip = self.position + pygame.Vector2(math.cos(angle), math.sin(angle)) * self.size
         left = self.position + pygame.Vector2(math.cos(angle + 2 * math.pi / 3), math.sin(angle + 2 * math.pi / 3)) * (self.size / 2)
         right = self.position + pygame.Vector2(math.cos(angle - 2 * math.pi / 3), math.sin(angle - 2 * math.pi / 3)) * (self.size / 2)
         
         # Convert coordinates to integers for rendering
-        points = [(int(tip.x), int(tip.y)), (int(left.x), int(left.y)), (int(right.x), int(right.y))]
-        
-        # Draw the triangle
-        pygame.draw.polygon(screen, COLOR, points)
+        return[(int(tip.x), int(tip.y)), (int(left.x), int(left.y)), (int(right.x), int(right.y))]
+    
+    def draw_vicinity_circle(self, screen, color):
+        # Draw the vicinity circle
+        pygame.draw.circle(
+            screen,
+            color,
+            (int(self.position.x), int(self.position.y)),
+            self.vicinity_radius,
+            1  # Outline thickness
+        )
+
+    def draw_direction(self, direction, screen, color):
+         # Draw the line of sight (direction vector)
+        line_end = self.position + direction * (self.vicinity_radius)  # Extend line for visibility
+        pygame.draw.line(
+            screen,
+            color,
+            (int(self.position.x), int(self.position.y)),
+            (int(line_end.x), int(line_end.y)),
+            2  # Line thickness
+        )
