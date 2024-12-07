@@ -5,18 +5,18 @@ from grid import Grid
 
 SIZE = 15 # Creature size independent of the grid (in pixels)
 COLOR = (0, 100, 255) # Creature color as rgb 
-VICINITY_RADIUS = 60 # Radius of creatures vicinity (in pixels)
+VICINITY_RADIUS = 100 # Radius of creatures vicinity (in pixels)
 MIN_DISTANCE = 30 # minimal distance to other creatures (in pixels)
 MAX_VELOCITY = 4 # maximal velocity multiplier (in pixels)
-MAX_TURN_ANGLE = 3 # maximal turn rate during a single frame (in radians)  1 Rad is ca. 57 Degrees
+MAX_TURN_ANGLE = 2 # maximal turn rate during a single frame (in radians)  1 Rad is ca. 57 Degrees
 MIN_TURN_ANGLE = 0.1 # minimal allowed turn (in radians) # 0.5 was not bad
 MAX_VELOCITY_DEVIATION = 0.05 # maximal deviation to the velocity that cann occure during a single frame (in pixels per frame)
 
-# Influence Multipliers, you can adjust them to change creatures behaiviour
+# Influence Multipliers, you can adjust them to change creatures behaviour
 BORDER_INFLUENCE_MULTIPLIER = 4
 COHESION_INFLUENCE_MULTIPLIER = 1
 ALIGNMENT_INFLUENCE_MULTIPLIER = 1
-SEPARATION_INFLUENCE_MULTIPLIER = 1
+SEPARATION_INFLUENCE_MULTIPLIER = 1.5
 
 class Creature:
 
@@ -168,22 +168,26 @@ class Creature:
                     average_direction += other.direction
 
                     if dist < self.min_distance:
-                        # Move away from the nearby creature
+                        # Move away from the nearby creatures
                         separation_direction += (self.position - other.position) / dist  # Inverse proportional to distance
 
         if total_nearby > 0:
-            # cohesion
+            # Cohesion
             center_of_mass /= total_nearby
             direction_to_center = (center_of_mass - self.position)
-            direction_to_center = (direction_to_center * self.position.distance_to(center_of_mass)).normalize() # proportional to distance to the center of mass (the closer the weaker)           
-
-            # alignment
+            direction_to_center = direction_to_center / self.position.distance_to(center_of_mass) # Inverse proportional to distance to the center of mass (the farther the weaker)
+            #direction_to_center = direction_to_center * self.position.distance_to(center_of_mass) # Proportional to distance to the center of mass (the closer the weaker)           
+            if(direction_to_center != pygame.Vector2(0, 0)):
+                direction_to_center = direction_to_center.normalize()
+            
+            # Alignment
             average_direction /= total_nearby
-            average_direction.normalize()
+            if(average_direction != pygame.Vector2(0, 0)):
+                average_direction = average_direction.normalize()
 
-            # separation
+            # Separation
             if(separation_direction != pygame.Vector2(0, 0)):
-                separation_direction.normalize()
+                separation_direction = separation_direction.normalize()
 
         return direction_to_center * cohesion_influence_multiplier + average_direction * alignment_influence_multiplier + separation_direction * separation_influence_multiplier
     
