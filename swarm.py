@@ -4,7 +4,7 @@ from creature import Creature
 from grid import Grid
 from stats import Stats 
 
-FPS_LIMIT = 50
+FPS_LIMIT = 60
 NUMBER_OF_CREATURES = 60
 DEBUG = False
 
@@ -28,7 +28,7 @@ while True:
             pygame.quit()
             sys.exit()
 
-    stats.start_loop()
+    stats.start_frame()
 
     # Clear screen
     #screen.fill((255, 255, 255))
@@ -48,7 +48,7 @@ while True:
     for creature in creatures:
         creature.draw(screen, DEBUG)    
     
-    stats.end_loop()
+    stats.end_frame()
     stats.draw(screen)
 
     # Update display
