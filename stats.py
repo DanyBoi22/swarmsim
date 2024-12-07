@@ -24,4 +24,4 @@ class Stats:
             f"FPS: {int(self.fps)}",
         ]
         for i, text in enumerate(stats_text):
-            self.font.render_to(screen, (10, 10 + i * 20), text, (255, 255, 255))
+            self.font.render_to(screen, (10, 10 + i * 20), text, (0, 0, 0))

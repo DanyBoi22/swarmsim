@@ -3,13 +3,13 @@ import random
 import math
 from grid import Grid
 
-SIZE = 20 # Creature size independent of the grid (in pixels)
+SIZE = 15 # Creature size independent of the grid (in pixels)
 COLOR = (0, 100, 255) # Creature color as rgb 
-VICINITY_RADIUS = 80 # Radius of creatures vicinity (in pixels)
-MIN_DISTANCE = 40 # minimal distance to other creatures (in pixels)
+VICINITY_RADIUS = 60 # Radius of creatures vicinity (in pixels)
+MIN_DISTANCE = 30 # minimal distance to other creatures (in pixels)
 MAX_VELOCITY = 4 # maximal velocity multiplier (in pixels)
 MAX_TURN_RATE = 5 # maximal turn rate during a single frame (in radians)
-MIN_TURN = 0.5 # minimal allowed turn (in radians)
+MIN_TURN = 0.1 # minimal allowed turn (in radians) # 0.5 was not bad
 MAX_VELOCITY_DEVIATION = 0.05 # maximal deviation to the velocity that cann occure during a single frame (in pixels)
 
 class Creature:
@@ -79,10 +79,11 @@ class Creature:
         self.position = self.next_position
         self.velocity = self.next_velocity
 
+    """
     def border_check(self):
-        """
-        ToDo: rework later
-        """
+    """
+        #ToDo: rework later
+    """
         # Check for collisions with borders and reverse direction
         if self.position.x - self.size < 0 or self.position.x + self.size > self.world_width:
             self.next_direction.x *= -1  # Reverse x direction
@@ -91,7 +92,41 @@ class Creature:
         if self.position.y - self.size < 0 or self.position.y + self.size > self.world_height:
             self.next_direction.y *= -1  # Reverse y direction
             self.next_position.y = max(self.size, min(self.world_height - self.size, self.position.y))  # Clamp position
-    
+    """
+
+    def border_check(self):
+        """
+        Adjust the creature's direction gradually based on proximity to borders.
+        The closer to a border, the larger the turning angle to avoid collisions.
+        """
+        # Initialize a force vector to adjust direction
+        border_avoidance = pygame.Vector2(0, 0)
+
+        # Proximity to left and right borders
+        if self.position.x - self.size < self.size * 2:  # Close to the left border
+            distance_to_border = max(1, self.position.x - self.size)  # Avoid division by zero
+            border_avoidance.x += (self.size * 2 - distance_to_border) / self.size
+
+        if self.position.x + self.size > self.world_width - self.size * 2:  # Close to the right border
+            distance_to_border = max(1, self.world_width - (self.position.x + self.size))  # Avoid division by zero
+            border_avoidance.x -= (self.size * 2 - distance_to_border) / self.size
+
+        # Proximity to top and bottom borders
+        if self.position.y - self.size < self.size * 2:  # Close to the top border
+            distance_to_border = max(1, self.position.y - self.size)  # Avoid division by zero
+            border_avoidance.y += (self.size * 2 - distance_to_border) / self.size
+
+        if self.position.y + self.size > self.world_height - self.size * 2:  # Close to the bottom border
+            distance_to_border = max(1, self.world_height - (self.position.y + self.size))  # Avoid division by zero
+            border_avoidance.y -= (self.size * 2 - distance_to_border) / self.size
+
+        # If there is a border influence, adjust the direction
+        if border_avoidance.length() > 0:
+            # Normalize and scale the border avoidance force
+            border_avoidance = border_avoidance.normalize() * 0.5  # Scaling to avoid drastic changes
+            # Blend current direction with border avoidance force
+            self.next_direction = (self.next_direction + border_avoidance).normalize()
+
     def align_direction(self, current_direction, desired_direction):
         # Calculate the angle between the current and desired direction vectors
         current_angle = math.atan2(current_direction.y, current_direction.x)
@@ -171,7 +206,8 @@ class Creature:
         if total_nearby > 0:
             # cohesion
             center_of_mass /= total_nearby
-            direction_to_center = (center_of_mass - self.position).normalize()
+            direction_to_center = (center_of_mass - self.position)
+            direction_to_center = (direction_to_center * self.position.distance_to(center_of_mass)).normalize() # proportional to distance to the center of mass (th closer the weaker)           
 
             # alignment
             average_direction /= total_nearby
