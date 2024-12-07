@@ -10,7 +10,13 @@ MIN_DISTANCE = 30 # minimal distance to other creatures (in pixels)
 MAX_VELOCITY = 4 # maximal velocity multiplier (in pixels)
 MAX_TURN_ANGLE = 3 # maximal turn rate during a single frame (in radians)  1 Rad is ca. 57 Degrees
 MIN_TURN_ANGLE = 0.1 # minimal allowed turn (in radians) # 0.5 was not bad
-MAX_VELOCITY_DEVIATION = 0.05 # maximal deviation to the velocity that cann occure during a single frame (in pixels)
+MAX_VELOCITY_DEVIATION = 0.05 # maximal deviation to the velocity that cann occure during a single frame (in pixels per frame)
+
+# Influence Multipliers, you can adjust them to change creatures behaiviour
+BORDER_INFLUENCE_MULTIPLIER = 4
+COHESION_INFLUENCE_MULTIPLIER = 1
+ALIGNMENT_INFLUENCE_MULTIPLIER = 1
+SEPARATION_INFLUENCE_MULTIPLIER = 1
 
 class Creature:
 
@@ -28,7 +34,6 @@ class Creature:
         y = random.randint(0, grid.get_grid_size() - 1) # random starting y position
         self.position = pygame.Vector2(x, y)
         self.direction = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1)).normalize() # initiate random direction
-
         self.velocity = self.max_velocity / 2
 
         # Buffers for the next state
@@ -47,8 +52,11 @@ class Creature:
         """
 
         # Calculate desired direction
-        creatures_influence = self.creatures_in_vicinity_influence(creatures_list)
-        border_avoidance = self.border_check()
+        creatures_influence = self.creatures_in_vicinity_influence(creatures_list, 
+                                                                   cohesion_influence_multiplier=COHESION_INFLUENCE_MULTIPLIER, 
+                                                                   alignment_influence_multiplier=ALIGNMENT_INFLUENCE_MULTIPLIER, 
+                                                                   separation_influence_multiplier=SEPARATION_INFLUENCE_MULTIPLIER)
+        border_avoidance = self.border_check(influence_multiplier=BORDER_INFLUENCE_MULTIPLIER)
         desired_direction = creatures_influence + border_avoidance
         
         # Set the desired direction as next direction
@@ -65,18 +73,20 @@ class Creature:
         
     def update_state(self):
         # Apply the buffered next state
-        self.previous_direction = self.direction # for analysing purposes
         self.direction = self.next_direction
         self.position = self.next_position
         self.velocity = self.next_velocity
 
-    def border_check(self):
+        self.previous_direction = self.direction # for analysing purposes
+
+    def border_check(self, influence_multiplier=1):
         """
         Adjust the creature's direction gradually based on proximity to borders.
         The closer to a border, the larger the turning angle to avoid collisions.
+        You can adjust the influence multiplier if you want the creatures to avoid the borders more or less
         """
         # Initialize a force vector to adjust direction
-        border_avoidance = pygame.Vector2(0, 0)
+        border_avoidance = pygame.Vector2(0, 0) 
 
         # Proximity to left and right borders
         if self.position.x - self.size < self.size * 2:  # Close to the left border
@@ -97,17 +107,9 @@ class Creature:
             border_avoidance.y -= (self.size * 2 - distance_to_border) / self.size
 
         if border_avoidance.length() > 0:
-            border_avoidance = border_avoidance.normalize()
+            border_avoidance = border_avoidance.normalize() * influence_multiplier
         
         return border_avoidance
-        """
-        # If there is a border influence, adjust the direction
-        if border_avoidance.length() > 0:
-            # Normalize and scale the border avoidance force
-            border_avoidance = border_avoidance.normalize() * 0.5  # Scaling to avoid drastic changes
-            # Blend current direction with border avoidance force
-            self.next_direction = (self.next_direction + border_avoidance).normalize()
-        """
     
     def align_direction(self, current_direction, desired_direction):
         """
@@ -135,7 +137,7 @@ class Creature:
 
         return aligned_direction
 
-    def creatures_in_vicinity_influence(self, creatures_list):
+    def creatures_in_vicinity_influence(self, creatures_list, cohesion_influence_multiplier=1, alignment_influence_multiplier=1, separation_influence_multiplier=1):
         """
         The calculation of force that influences creatures direction. It consisnt of 3 parts: 
         - Cohesion involves finding the center of mass of all nearby creatures and making the creature move towards that center. 
@@ -144,6 +146,8 @@ class Creature:
         The force will make the creature gradually align with the average direction of other creatures within the given radius.
         - Separation ensures that creatures do not crowd each other. 
         If they are too close, they will move away from one another to maintain a safe distance.
+
+        You can adjust the influence multipliers if you want the creatures to behave different 
         """
 
         center_of_mass = pygame.Vector2(0, 0)
@@ -181,7 +185,7 @@ class Creature:
             if(separation_direction != pygame.Vector2(0, 0)):
                 separation_direction.normalize()
 
-        return direction_to_center + average_direction + separation_direction
+        return direction_to_center * cohesion_influence_multiplier + average_direction * alignment_influence_multiplier + separation_direction * separation_influence_multiplier
     
     def adjust_velocity(self, creatures_list):
         """
@@ -200,8 +204,9 @@ class Creature:
 
         if total_nearby > 0:
             average_velocity /= total_nearby
+            self.align_velocity(average_velocity)
 
-        self.align_velocity(average_velocity)
+        self.randomise_velocity() # create just a little bit of randomisation to make it not that boring
     
     def align_velocity(self, average_velocity, alignment_strength=0.1):
         """
@@ -221,8 +226,6 @@ class Creature:
             self.next_velocity += velocity_change
             self.next_velocity = max(0, min(self.next_velocity, self.max_velocity))
 
-        self.randomise_velocity()
-
     def randomise_velocity(self):
         # Random change in velocity multiplier: either increase or decrease slightly
         velocity_change = random.uniform(-self.max_velocity_deviation, self.max_velocity_deviation)
@@ -232,10 +235,6 @@ class Creature:
         self.next_velocity = max(0, min(self.next_velocity, self.max_velocity))
 
     def draw(self, screen, debug=False):
-        # Orientation logic for a triangle
-        """
-         ToDo: Optimize 
-        """
         # create the points for the shape
         points = self.create_triangle_points()
         # Draw the shape
@@ -247,6 +246,10 @@ class Creature:
             self.draw_direction(self.previous_direction, screen, (0, 255, 0))
 
     def create_triangle_points(self):
+        # Orientation logic for a triangle
+        """
+         ToDo: Optimize 
+        """
         angle = math.atan2(self.direction.y, self.direction.x)  # Angle of movement in radians
         tip = self.position + pygame.Vector2(math.cos(angle), math.sin(angle)) * self.size
         left = self.position + pygame.Vector2(math.cos(angle + 2 * math.pi / 3), math.sin(angle + 2 * math.pi / 3)) * (self.size / 2)
